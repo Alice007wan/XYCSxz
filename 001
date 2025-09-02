@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>勋章合成系统 - 网页在线版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    
+    <!-- 配置Tailwind自定义颜色 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#8B5CF6', // 紫色主题
+                        secondary: '#EC4899', // 粉色辅助色
+                        accent: '#10B981', // 绿色成功色
+                        danger: '#EF4444', // 红色失败色
+                        dark: '#1E293B', // 深色背景
+                    },
+                    fontFamily: {
+                        inter: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <!-- 自定义工具类 -->
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            }
+            .card-hover {
+                @apply transition-all duration-300 hover:shadow-lg hover:shadow-primary/20 hover:-translate-y-1;
+            }
+            .btn-primary {
+                @apply bg-primary hover:bg-primary/90 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50;
+            }
+            .btn-secondary {
+                @apply bg-secondary hover:bg-secondary/90 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-secondary/50;
+            }
+            .input-style {
+                @apply bg-dark/50 border border-gray-600 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary;
+            }
+            .select-style {
+                @apply bg-dark/50 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary appearance-none bg-no-repeat bg-right;
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23ffffff'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+                background-size: 1em;
+                background-position: right 0.5em center;
+                padding-right: 2em;
+            }
+        }
+    </style>
+    
+    <!-- 勋章数据 -->
+    <script>
+        const medalData = [
+            {"name": "天之逆魔勋章", "baseSuccessRate": 0.33, "failureBonus": 0.08, "reputationCost": 400},
+            {"name": "天空勋章", "baseSuccessRate": 0.33, "failureBonus": 0.08, "reputationCost": 600},
+            {"name": "天之天空勋章", "baseSuccessRate": 0.33, "failureBonus": 0.08, "reputationCost": 800},
+            {"name": "特殊勋章(天机、破空)", "baseSuccessRate": 0.33, "failureBonus": 0.08, "reputationCost": 1000},
+            {"name": "修罗战天勋章", "baseSuccessRate": 0.25, "failureBonus": 0.08, "reputationCost": 1000},
+            {"name": "三神勋章(T1)", "baseSuccessRate": 0.33, "failureBonus": 0.10, "reputationCost": 1000},
+            {"name": "血煞勋章(T2)", "baseSuccessRate": 0.33, "failureBonus": 0.15, "reputationCost": 2000},
+            {"name": "蟠龙勋章(T3)", "baseSuccessRate": 0.33, "failureBonus": 0.20, "reputationCost": 3000},
+            {"name": "沙城勋章(T4)", "baseSuccessRate": 0.33, "failureBonus": 0.25, "reputationCost": 4000},
+            {"name": "龙魂勋章(T5)", "baseSuccessRate": 0.33, "failureBonus": 0.30, "reputationCost": 5000},
+            {"name": "盘古勋章(T6)", "baseSuccessRate": 0.33, "failureBonus": 0.35, "reputationCost": 6000},
+            {"name": "天命勋章(T7)", "baseSuccessRate": 0.33, "failureBonus": 0.40, "reputationCost": 7000}
+        ];
+    </script>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-purple-900/20 to-gray-900 min-h-screen text-white font-inter">
+    <!-- 页面头部 -->
+    <header class="bg-dark/80 backdrop-blur-md border-b border-gray-800 sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="text-primary text-3xl">
+                    <i class="fas fa-award"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-shadow">勋章合成系统</h1>
+            </div>
+            <div class="hidden md:flex items-center space-x-6">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-trophy text-yellow-400"></i>
+                    <span id="totalSyntheses" class="text-sm font-medium">总合成: 0</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                    <span id="successCount" class="text-sm font-medium">成功: 0</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-times-circle text-red-400"></i>
+                    <span id="failureCount" class="text-sm font-medium">失败: 0</span>
+                </div>
+            </div>
+            <button id="resetBtn" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-all duration-300">
+                <i class="fas fa-redo mr-2"></i>重置
+            </button>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <!-- 主要内容区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左侧：合成面板 -->
+            <div class="lg:col-span-2 space-y-8">
+                <!-- 勋章选择面板 -->
+                <div class="bg-dark/50 rounded-xl border border-gray-800 p-6 card-hover">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-magic text-primary mr-3"></i>
+                        勋章合成
+                    </h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="medalSelect" class="block text-sm font-medium text-gray-300 mb-2">选择勋章</label>
+                            <select id="medalSelect" class="select-style w-full mb-4">
+                                <option value="" disabled selected>请选择要合成的勋章</option>
+                                <!-- 勋章选项将通过JavaScript动态添加 -->
+                            </select>
+                            
+                            <div id="medalInfo" class="bg-gray-800/50 rounded-lg p-4 hidden">
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-sm text-gray-400">基础成功率:</span>
+                                    <span id="baseSuccessRate" class="text-sm font-medium"></span>
+                                </div>
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-sm text-gray-400">失败加成:</span>
+                                    <span id="failureBonus" class="text-sm font-medium"></span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-sm text-gray-400">声望消耗:</span>
+                                    <span id="reputationCost" class="text-sm font-medium text-yellow-400"></span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="currentReputation" class="block text-sm font-medium text-gray-300 mb-2">当前声望</label>
+                            <input type="number" id="currentReputation" class="input-style w-full mb-4" placeholder="输入你的当前声望" min="0">
+                            
+                            <div id="successRateInfo" class="bg-gray-800/50 rounded-lg p-4">
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-sm text-gray-400">当前失败加成:</span>
+                                    <span id="currentFailureBonus" class="text-sm font-medium text-orange-400">0%</span>
+                                </div>
+                                <div class="flex justify-between mb-2">
+                                    <span class="text-sm text-gray-400">最终成功率:</span>
+                                    <span id="finalSuccessRate" class="text-sm font-bold text-primary">0%</span>
+                                </div>
+                                <div id="reputationCheck" class="mt-4 text-sm hidden">
+                                    <!-- 声望检查结果将在这里显示 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 text-center">
+                        <button id="synthesizeBtn" class="btn-primary w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none" disabled>
+                            <i class="fas fa-hammer mr-2"></i>开始合成
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 合成结果面板 -->
+                <div id="resultPanel" class="bg-dark/50 rounded-xl border border-gray-800 p-6 hidden">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-clipboard-check text-secondary mr-3"></i>
+                        合成结果
+                    </h2>
+                    
+                    <div id="resultContent" class="text-center py-6">
+                        <!-- 合成结果将在这里动态显示 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：统计和历史 -->
+            <div class="space-y-8">
+                <!-- 成功率图表 -->
+                <div class="bg-dark/50 rounded-xl border border-gray-800 p-6 card-hover">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-chart-line text-primary mr-3"></i>
+                        成功率趋势
+                    </h2>
+                    
+                    <div class="h-64">
+                        <canvas id="successRateChart"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 合成历史 -->
+                <div class="bg-dark/50 rounded-xl border border-gray-800 p-6 card-hover">
+                    <h2 class="text-xl font-bold mb-6 flex items-center">
+                        <i class="fas fa-history text-secondary mr-3"></i>
+                        合成历史
+                    </h2>
+                    
+                    <div id="historyList" class="max-h-96 overflow-y-auto space-y-3 pr-2">
+                        <div class="text-center text-gray-400 py-8">
+                            <i class="fas fa-info-circle text-2xl mb-2"></i>
+                            <p>暂无合成记录</p>
+                        </div>
+                        <!-- 历史记录将在这里动态添加 -->
+                    </div>
+                </div>
+                
+                <!-- 移动端统计信息 -->
+                <div class="md:hidden bg-dark/50 rounded-xl border border-gray-800 p-6 card-hover">
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <div class="text-2xl font-bold text-primary" id="mobileTotalSyntheses">0</div>
+                            <div class="text-xs text-gray-400">总合成</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-green-400" id="mobileSuccessCount">0</div>
+                            <div class="text-xs text-gray-400">成功</div>
+                        </div>
+                        <div>
+                            <div class="text-2xl font-bold text-red-400" id="mobileFailureCount">0</div>
+                            <div class="text-xs text-gray-400">失败</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-dark/80 backdrop-blur-md border-t border-gray-800 mt-12">
+        <div class="container mx-auto px-4 py-6 text-center text-gray-400 text-sm">
+            <p>© 2025 《轩辕传世》勋章合成系统  丨  作者：白茶清欢</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script>
+        // 游戏状态
+        const gameState = {
+            totalSyntheses: 0,
+            successCount: 0,
+            failureCount: 0,
+            currentFailureBonus: 0,
+            history: [],
+            chartData: {
+                labels: [],
+                successRates: []
+            }
+        };
+
+        // DOM元素
+        const medalSelect = document.getElementById('medalSelect');
+        const medalInfo = document.getElementById('medalInfo');
+        const baseSuccessRate = document.getElementById('baseSuccessRate');
+        const failureBonus = document.getElementById('failureBonus');
+        const reputationCost = document.getElementById('reputationCost');
+        const currentReputation = document.getElementById('currentReputation');
+        const currentFailureBonus = document.getElementById('currentFailureBonus');
+        const finalSuccessRate = document.getElementById('finalSuccessRate');
+        const reputationCheck = document.getElementById('reputationCheck');
+        const synthesizeBtn = document.getElementById('synthesizeBtn');
+        const resultPanel = document.getElementById('resultPanel');
+        const resultContent = document.getElementById('resultContent');
+        const historyList = document.getElementById('historyList');
+        const resetBtn = document.getElementById('resetBtn');
+        const totalSyntheses = document.getElementById('totalSyntheses');
+        const successCount = document.getElementById('successCount');
+        const failureCount = document.getElementById('failureCount');
+        const mobileTotalSyntheses = document.getElementById('mobileTotalSyntheses');
+        const mobileSuccessCount = document.getElementById('mobileSuccessCount');
+        const mobileFailureCount = document.getElementById('mobileFailureCount');
+
+        // 图表
+        let successRateChart;
+
+        // 初始化函数
+        function init() {
+            // 填充勋章选择下拉框
+            populateMedalSelect();
+            
+            // 初始化图表
+            initChart();
+            
+            // 添加事件监听器
+            addEventListeners();
+            
+            // 更新UI
+            updateUI();
+        }
+
+        // 填充勋章选择下拉框
+        function populateMedalSelect() {
+            medalSelect.innerHTML = '<option value="" disabled selected>请选择要合成的勋章</option>';
+            
+            medalData.forEach((medal, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${medal.name} (${medal.reputationCost}声望)`;
+                medalSelect.appendChild(option);
+            });
+        }
+
+        // 初始化图表
+        function initChart() {
+            const ctx = document.getElementById('successRateChart').getContext('2d');
+            
+            successRateChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: gameState.chartData.labels,
+                    datasets: [{
+                        label: '成功率',
+                        data: gameState.chartData.successRates,
+                        borderColor: 'rgb(139, 92, 246)',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: 'rgb(139, 92, 246)',
+                        pointBorderColor: 'white',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: 'white',
+                            bodyColor: 'white',
+                            borderColor: 'rgba(139, 92, 246, 0.5)',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    return `成功率: ${context.parsed.y.toFixed(0)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                color: 'rgba(255, 255, 255, 0.7)'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)'
+                            },
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 添加事件监听器
+        function addEventListeners() {
+            // 勋章选择变化
+            medalSelect.addEventListener('change', handleMedalSelectChange);
+            
+            // 当前声望变化
+            currentReputation.addEventListener('input', handleReputationChange);
+            
+            // 合成按钮点击
+            synthesizeBtn.addEventListener('click', handleSynthesize);
+            
+            // 重置按钮点击
+            resetBtn.addEventListener('click', handleReset);
+        }
+
+        // 处理勋章选择变化
+        function handleMedalSelectChange() {
+            const selectedIndex = medalSelect.value;
+            
+            if (selectedIndex === '') {
+                medalInfo.classList.add('hidden');
+                synthesizeBtn.disabled = true;
+                updateFinalSuccessRate();
+                return;
+            }
+            
+            const selectedMedal = medalData[selectedIndex];
+            
+            // 更新勋章信息
+            baseSuccessRate.textContent = `${(selectedMedal.baseSuccessRate * 100).toFixed(0)}%`;
+            failureBonus.textContent = `${(selectedMedal.failureBonus * 100).toFixed(0)}%`;
+            reputationCost.textContent = `${selectedMedal.reputationCost} 声望`;
+            
+            medalInfo.classList.remove('hidden');
+            
+            // 检查声望是否足够
+            checkReputation();
+            
+            // 更新最终成功率
+            updateFinalSuccessRate();
+            
+            // 启用合成按钮
+            synthesizeBtn.disabled = false;
+        }
+
+        // 处理声望变化
+        function handleReputationChange() {
+            checkReputation();
+        }
+
+        // 检查声望是否足够
+        function checkReputation() {
+            const selectedIndex = medalSelect.value;
+            const reputationValue = parseInt(currentReputation.value) || 0;
+            
+            reputationCheck.classList.remove('hidden');
+            
+            if (selectedIndex === '') {
+                reputationCheck.innerHTML = '';
+                return;
+            }
+            
+            const selectedMedal = medalData[selectedIndex];
+            
+            if (reputationValue >= selectedMedal.reputationCost) {
+                reputationCheck.innerHTML = `
+                    <div class="flex items-center justify-between text-green-400">
+                        <span>声望充足!</span>
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                `;
+                synthesizeBtn.disabled = false;
+            } else {
+                reputationCheck.innerHTML = `
+                    <div class="flex items-center justify-between text-red-400">
+                        <span>声望不足，还需要 ${selectedMedal.reputationCost - reputationValue} 声望</span>
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                `;
+                synthesizeBtn.disabled = true;
+            }
+        }
+
+        // 更新最终成功率
+        function updateFinalSuccessRate() {
+            const selectedIndex = medalSelect.value;
+            
+            if (selectedIndex === '') {
+                finalSuccessRate.textContent = '0%';
+                return;
+            }
+            
+            const selectedMedal = medalData[selectedIndex];
+            const totalSuccessRate = selectedMedal.baseSuccessRate + gameState.currentFailureBonus;
+            const clampedRate = Math.min(totalSuccessRate, 1); // 最大成功率为100%
+            
+            finalSuccessRate.textContent = `${(clampedRate * 100).toFixed(0)}%`;
+        }
+
+        // 处理合成
+        function handleSynthesize() {
+            const selectedIndex = medalSelect.value;
+            const reputationValue = parseInt(currentReputation.value) || 0;
+            
+            if (selectedIndex === '' || isNaN(reputationValue)) {
+                return;
+            }
+            
+            const selectedMedal = medalData[selectedIndex];
+            
+            // 检查声望是否足够
+            if (reputationValue < selectedMedal.reputationCost) {
+                return;
+            }
+            
+            // 计算最终成功率
+            const totalSuccessRate = selectedMedal.baseSuccessRate + gameState.currentFailureBonus;
+            const clampedRate = Math.min(totalSuccessRate, 1); // 最大成功率为100%
+            
+            // 模拟合成结果
+            const success = Math.random() < clampedRate;
+            
+            // 更新游戏状态
+            gameState.totalSyntheses++;
+            if (success) {
+                gameState.successCount++;
+                gameState.currentFailureBonus = 0; // 成功后重置失败加成
+            } else {
+                gameState.failureCount++;
+                gameState.currentFailureBonus += selectedMedal.failureBonus; // 失败后增加失败加成
+            }
+            
+            // 记录历史
+            const historyItem = {
+                timestamp: new Date(),
+                medalName: selectedMedal.name,
+                success: success,
+                successRate: clampedRate,
+                reputationCost: selectedMedal.reputationCost
+            };
+            gameState.history.unshift(historyItem); // 添加到历史记录的开头
+            
+            // 更新图表数据
+            gameState.chartData.labels.push(`#${gameState.totalSyntheses}`);
+            gameState.chartData.successRates.push(clampedRate * 100);
+            
+            // 限制图表数据点数量
+            if (gameState.chartData.labels.length > 20) {
+                gameState.chartData.labels.shift();
+                gameState.chartData.successRates.shift();
+            }
+            
+            // 更新UI
+            updateUI();
+            
+            // 显示合成结果
+            showSynthesisResult(selectedMedal.name, success, clampedRate);
+            
+            // 扣除声望
+            currentReputation.value = reputationValue - selectedMedal.reputationCost;
+            checkReputation();
+        }
+
+        // 显示合成结果
+        function showSynthesisResult(medalName, success, successRate) {
+            const selectedMedal = medalData[medalSelect.value];
+            
+            resultPanel.classList.remove('hidden');
+            
+            if (success) {
+                resultContent.innerHTML = `
+                    <div class="text-5xl text-green-400 mb-6 animate-bounce">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-green-400 mb-4">合成成功!</h3>
+                    <p class="mb-6">恭喜你成功合成了 <span class="text-primary font-bold text-lg">${medalName}</span>!</p>
+                    
+                    <div class="bg-gray-800/50 rounded-lg p-6 mb-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">基础成功率</div>
+                                <div class="text-lg font-bold">${(selectedMedal.baseSuccessRate * 100).toFixed(0)}%</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">失败加成</div>
+                                <div class="text-lg font-bold text-orange-400">${((successRate - selectedMedal.baseSuccessRate) * 100).toFixed(0)}%</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">最终成功率</div>
+                                <div class="text-lg font-bold text-primary">${(successRate * 100).toFixed(0)}%</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">消耗声望</div>
+                                <div class="text-lg font-bold text-yellow-400">${selectedMedal.reputationCost}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                resultContent.innerHTML = `
+                    <div class="text-5xl text-red-400 mb-6 animate-pulse">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-red-400 mb-4">合成失败!</h3>
+                    <p class="mb-6">很遗憾，${medalName} 合成失败了...</p>
+                    
+                    <div class="bg-gray-800/50 rounded-lg p-6 mb-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">基础成功率</div>
+                                <div class="text-lg font-bold">${(selectedMedal.baseSuccessRate * 100).toFixed(0)}%</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">失败加成</div>
+                                <div class="text-lg font-bold text-orange-400">+${(selectedMedal.failureBonus * 100).toFixed(0)}%</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">本次成功率</div>
+                                <div class="text-lg font-bold text-primary">${(successRate * 100).toFixed(0)}%</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-400 mb-1">消耗声望</div>
+                                <div class="text-lg font-bold text-yellow-400">${selectedMedal.reputationCost}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-orange-900/30 border border-orange-800 rounded-lg p-4">
+                        <div class="flex items-center text-orange-400 mb-2">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            <span class="font-bold">失败加成已累积</span>
+                        </div>
+                        <p class="text-sm text-gray-300">下次合成同一勋章的成功率将提高 ${(selectedMedal.failureBonus * 100).toFixed(0)}%!</p>
+                    </div>
+                `;
+            }
+            
+            // 滚动到结果面板
+            resultPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // 处理重置
+        function handleReset() {
+            if (confirm('确定要重置所有合成数据吗？这将清除所有历史记录和统计信息。')) {
+                // 重置游戏状态
+                gameState.totalSyntheses = 0;
+                gameState.successCount = 0;
+                gameState.failureCount = 0;
+                gameState.currentFailureBonus = 0;
+                gameState.history = [];
+                gameState.chartData = {
+                    labels: [],
+                    successRates: []
+                };
+                
+                // 重置UI
+                medalSelect.value = '';
+                currentReputation.value = '';
+                medalInfo.classList.add('hidden');
+                resultPanel.classList.add('hidden');
+                reputationCheck.classList.add('hidden');
+                synthesizeBtn.disabled = true;
+                
+                // 更新UI
+                updateUI();
+                
+                // 重置图表
+                successRateChart.destroy();
+                initChart();
+                
+                // 显示重置成功消息
+                alert('已成功重置所有合成数据！');
+            }
+        }
+
+        // 更新UI
+        function updateUI() {
+            // 更新统计信息
+            totalSyntheses.textContent = `总合成: ${gameState.totalSyntheses}`;
+            successCount.textContent = `成功: ${gameState.successCount}`;
+            failureCount.textContent = `失败: ${gameState.failureCount}`;
+            
+            // 更新移动端统计信息
+            mobileTotalSyntheses.textContent = gameState.totalSyntheses;
+            mobileSuccessCount.textContent = gameState.successCount;
+            mobileFailureCount.textContent = gameState.failureCount;
+            
+            // 更新当前失败加成
+            currentFailureBonus.textContent = `${(gameState.currentFailureBonus * 100).toFixed(0)}%`;
+            
+            // 更新最终成功率
+            updateFinalSuccessRate();
+            
+            // 更新历史记录
+            updateHistoryList();
+            
+            // 更新图表
+            updateChart();
+        }
+
+        // 更新历史记录列表
+        function updateHistoryList() {
+            if (gameState.history.length === 0) {
+                historyList.innerHTML = `
+                    <div class="text-center text-gray-400 py-8">
+                        <i class="fas fa-info-circle text-2xl mb-2"></i>
+                        <p>暂无合成记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            historyList.innerHTML = '';
+            
+            gameState.history.forEach((item, index) => {
+                const historyItem = document.createElement('div');
+                historyItem.className = `bg-gray-800/50 rounded-lg p-4 ${index !== gameState.history.length - 1 ? 'mb-3' : ''}`;
+                
+                const timeString = item.timestamp.toLocaleTimeString();
+                
+                historyItem.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex items-center">
+                            <i class="fas ${item.success ? 'fa-check-circle text-green-400' : 'fa-times-circle text-red-400'} mr-2"></i>
+                            <span class="font-medium">${item.medalName}</span>
+                        </div>
+                        <span class="text-xs text-gray-400">${timeString}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">成功率:</span>
+                            <span class="font-medium">${(item.successRate * 100).toFixed(0)}%</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">消耗声望:</span>
+                            <span class="font-medium text-yellow-400">${item.reputationCost}</span>
+                        </div>
+                    </div>
+                `;
+                
+                historyList.appendChild(historyItem);
+            });
+        }
+
+        // 更新图表
+        function updateChart() {
+            successRateChart.data.labels = gameState.chartData.labels;
+            successRateChart.data.datasets[0].data = gameState.chartData.successRates;
+            successRateChart.update();
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+    
